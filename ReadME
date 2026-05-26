@@ -1,0 +1,34 @@
+Overview
+Fixed-time traffic signal plans cannot react to the volatile, non-stationary demand seen in modern cities. This project frames traffic signal control as a sequential decision-making problem where each intersection operates as an autonomous RL agent. Starting from a single-agent DQN baseline, we progressively integrate algorithmic enhancements to build a scalable, cooperative multi-agent system.
+Best result: Dueling Double DQN with Prioritized Experience Replay (PER) achieves an average vehicle waiting time of 12.9 seconds, compared to 55.1 seconds under a random policy — a 76% reduction.
+
+Architecture & Algorithms
+ApproachIntersectionsAvg. Wait (s)Reward FunctionSingle-Agent DQN1—StandardMulti-Agent DQN1614.93StandardDouble DQN1610.79StandardDueling DQN + GAT1613.24Neighbor-awareDueling DQN + PER1614.20Neighbor-awareDueling Double DQN + PER1612.90Neighbor-aware
+Key Components
+
+CityFlow Simulator — Microscopic traffic simulator running ~20× faster than SUMO, wrapped in a Gym-compatible interface.
+CTDE Framework — Centralized Training / Decentralized Execution: all agents share a single replay buffer during training but execute policies independently at runtime.
+Double DQN — Separates action selection (online network) from action evaluation (target network) to reduce overestimation bias.
+Dueling DQN — Decomposes Q-values into a state-value V(s) and an advantage A(s,a) for more stable learning.
+Graph Attention Network (GAT) — Two stacked GAT convolutional layers build node embeddings that capture each intersection's local state and its neighbors' congestion patterns.
+Neighbor-Aware Reward — Penalizes each agent for both its own queue and a weighted fraction of adjacent intersections' queues, driving cooperative "green wave" behavior.
+Prioritized Experience Replay (PER) — Assigns sampling priority to transitions with large TD errors, accelerating learning from the most informative experiences.
+Reward Normalization — Exponential moving average standardizes rewards to zero-mean/unit-variance, preventing destabilization from traffic spikes.
+Gradient Clipping — Caps gradient norm at 1.0 to prevent exploding gradients from large TD errors.
+
+
+Environment
+The simulation runs on a 4×4 grid (16 signalised intersections) defined by three JSON files:
+
+roadnet.json — Road network topology (intersections, lanes, connections)
+flow.json — Vehicle definitions (speed, acceleration, routes, arrival intervals)
+config.json — Entry point linking the above files and simulation parameters
+
+Observation space: 72-dimensional vector per intersection (queued vehicle counts on incoming and outgoing lanes).
+Action space: 9 discrete traffic light phases per intersection.
+Reward: Negative sum of waiting times across all vehicles at an intersection (normalized during training).
+Episode length: 1,000 steps at 1 Hz control frequency.
+
+Results Summary
+Evaluated over 1,000 greedy steps after 500 training episodes:
+MetricRandom PolicyBest Model (Dueling Double DQN + PER)Avg. waiting time55.12 s12.90 sAvg. travel time187.42 s155.27 sVehicles completed2,3162,540
